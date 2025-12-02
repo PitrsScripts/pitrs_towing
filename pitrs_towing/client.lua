@@ -8,6 +8,8 @@ local towingData = {
     ropeType = nil
 }
 
+local frontTargetShown = false
+
 local winchData = {
     vehicle = nil,
     anchorObject = nil,
@@ -106,8 +108,8 @@ exports.ox_target:addGlobalVehicle({
         name = 'attach_rope_rear',
         icon = 'fa-solid fa-link',
         label = Config.Locale['attach_rear'],
-        bones = {'boot', 'bumper_r', 'exhaust', 'wheel_lr', 'wheel_rr', 'seat_r'},
-        distance = 3.5,
+        bones = {'wheel_lr', 'wheel_rr'},
+        distance = 4.5,
         canInteract = function(entity)
             if not HasRopeItem() then return false end
             if towingData.vehicle or towingData.targetVehicle then return false end
@@ -135,66 +137,59 @@ exports.ox_target:addGlobalVehicle({
         end
     },
     {
-        name = 'attach_rope_front_first',
+        name = 'attach_rope_front',
         icon = 'fa-solid fa-link',
         label = Config.Locale['attach_front'],
-        bones = {'bumper_f', 'windscreen', 'wheel_lf', 'wheel_rf', 'handlebars', 'forks_u'},
-        distance = 3.5,
-        canInteract = function(entity)
-            if not HasRopeItem() then return false end
-            if towingData.vehicle or towingData.targetVehicle then return false end
-            local playerPed = PlayerPedId()
-            local playerVeh = GetVehiclePedIsIn(playerPed, false)
-            return playerVeh == 0 and DoesEntityExist(entity) and IsEntityAVehicle(entity)
-        end,
-        onSelect = function(data)
-            local ped = PlayerPedId()
-            lib.requestModel(Config.RopeProp)
-            towingData.ropeProp = CreateObject(GetHashKey(Config.RopeProp), 0, 0, 0, true, true, true)
-            AttachEntityToEntity(towingData.ropeProp, ped, 61, 0.21236287593877, -0.015105864412862, -0.093269506059142, 28.454237413852, 46.483631952722, -142.1679835736, true, true, false, true, 1, true)
-            
-            RopeLoadTextures()
-            while not RopeAreTexturesLoaded() do Wait(0) end
-            local propPos = GetEntityCoords(towingData.ropeProp)
-            local vehPos = GetVehicleBonePosition(data.entity, 'bumper_f')
-            towingData.handRope = AddRope(propPos.x, propPos.y, propPos.z, 0.0, 0.0, 0.0, Config.RopeLength, 1, Config.RopeLength, 1.0, 0.5, false, false, false, 1.0, false)
-            ActivatePhysics(towingData.handRope)
-            AttachEntitiesToRope(towingData.handRope, towingData.ropeProp, data.entity, propPos.x, propPos.y, propPos.z, vehPos.x, vehPos.y, vehPos.z, Config.RopeLength, false, false, nil, nil)
-            
-            towingData.targetVehicle = data.entity
-            towingData.firstIsRear = false
-            lib.notify({title = Config.Locale['title'], description = Config.Locale['notify_aim_rear'], type = 'inform'})
-        end
-    },
-    {
-        name = 'attach_rope_to_front',
-        icon = 'fa-solid fa-link',
-        label = Config.Locale['connect_vehicle'],
-        bones = {'bumper_f', 'windscreen', 'wheel_lf', 'wheel_rf', 'handlebars', 'forks_u'},
-        distance = 3.5,
+        bones = {'wheel_lf', 'wheel_rf'},
+        distance = 4.5,
         canInteract = function(entity)
             if towingData.rope ~= nil then return false end
-            if not towingData.vehicle then return false end
-            if towingData.vehicle == entity then return false end
+            if towingData.targetVehicle == entity then return false end
             local playerPed = PlayerPedId()
             local playerVeh = GetVehiclePedIsIn(playerPed, false)
-            if playerVeh ~= 0 or not DoesEntityExist(entity) then return false end
-            if not IsSameVehicleType(towingData.vehicle, entity) then return false end
+            if playerVeh ~= 0 or not DoesEntityExist(entity) or not IsEntityAVehicle(entity) then return false end
+            if towingData.vehicle and towingData.firstIsRear then
+                if towingData.vehicle == entity then return false end
+                if not IsSameVehicleType(towingData.vehicle, entity) then return false end
+                local veh1Pos = GetEntityCoords(towingData.vehicle)
+                local veh2Pos = GetEntityCoords(entity)
+                return #(veh1Pos - veh2Pos) <= Config.MaxDistance
+            end
             
-            local veh1Pos = GetEntityCoords(towingData.vehicle)
-            local veh2Pos = GetEntityCoords(entity)
-            return #(veh1Pos - veh2Pos) <= Config.MaxDistance
+
+            if not HasRopeItem() then return false end
+            if towingData.vehicle then return false end
+            return true
         end,
         onSelect = function(data)
-            StartTowing(towingData.vehicle, data.entity)
+            if towingData.vehicle and towingData.firstIsRear then
+                StartTowing(towingData.vehicle, data.entity)
+            else
+                local ped = PlayerPedId()
+                lib.requestModel(Config.RopeProp)
+                towingData.ropeProp = CreateObject(GetHashKey(Config.RopeProp), 0, 0, 0, true, true, true)
+                AttachEntityToEntity(towingData.ropeProp, ped, 61, 0.21236287593877, -0.015105864412862, -0.093269506059142, 28.454237413852, 46.483631952722, -142.1679835736, true, true, false, true, 1, true)
+                
+                RopeLoadTextures()
+                while not RopeAreTexturesLoaded() do Wait(0) end
+                local propPos = GetEntityCoords(towingData.ropeProp)
+                local vehPos = GetVehicleBonePosition(data.entity, 'bumper_f')
+                towingData.handRope = AddRope(propPos.x, propPos.y, propPos.z, 0.0, 0.0, 0.0, Config.RopeLength, 1, Config.RopeLength, 1.0, 0.5, false, false, false, 1.0, false)
+                ActivatePhysics(towingData.handRope)
+                AttachEntitiesToRope(towingData.handRope, towingData.ropeProp, data.entity, propPos.x, propPos.y, propPos.z, vehPos.x, vehPos.y, vehPos.z, Config.RopeLength, false, false, nil, nil)
+                
+                towingData.targetVehicle = data.entity
+                towingData.firstIsRear = false
+                lib.notify({title = Config.Locale['title'], description = Config.Locale['notify_aim_rear'], type = 'inform'})
+            end
         end
     },
     {
         name = 'attach_rope_to_rear',
         icon = 'fa-solid fa-link',
         label = Config.Locale['connect_vehicle'],
-        bones = {'boot', 'bumper_r', 'exhaust', 'wheel_lr', 'wheel_rr', 'seat_r'},
-        distance = 3.5,
+        bones = {'wheel_lr', 'wheel_rr'},
+        distance = 4.5,
         canInteract = function(entity)
             if towingData.rope ~= nil then return false end
             if not towingData.targetVehicle then return false end
@@ -216,8 +211,7 @@ exports.ox_target:addGlobalVehicle({
         name = 'detach_rope_front',
         icon = 'fa-solid fa-unlink',
         label = Config.Locale['detach_rope'],
-        bones = {'bumper_f', 'windscreen', 'wheel_lf', 'wheel_rf', 'handlebars'},
-        distance = 3.5,
+        distance = 5.0,
         canInteract = function(entity)
             return towingData.targetVehicle == entity and towingData.rope ~= nil
         end,
@@ -230,7 +224,7 @@ exports.ox_target:addGlobalVehicle({
         name = 'cancel_rope',
         icon = 'fa-solid fa-xmark',
         label = Config.Locale['cancel_rope'],
-        bones = {'boot', 'bumper_r', 'exhaust', 'wheel_lr', 'wheel_rr', 'seat_r'},
+        bones = {'wheel_lr', 'wheel_rr'},
         distance = 3.5,
         canInteract = function(entity)
             return towingData.vehicle == entity and towingData.rope == nil
@@ -253,10 +247,9 @@ exports.ox_target:addGlobalVehicle({
         name = 'cancel_rope_front',
         icon = 'fa-solid fa-xmark',
         label = Config.Locale['cancel_rope'],
-        bones = {'bumper_f', 'windscreen', 'wheel_lf', 'wheel_rf', 'handlebars'},
-        distance = 3.5,
+        distance = 5.0,
         canInteract = function(entity)
-            return towingData.targetVehicle == entity and towingData.rope == nil
+            return towingData.targetVehicle == entity and not towingData.firstIsRear and towingData.rope == nil
         end,
         onSelect = function()
             if towingData.ropeProp then
@@ -276,7 +269,7 @@ exports.ox_target:addGlobalVehicle({
         name = 'detach_rope',
         icon = 'fa-solid fa-unlink',
         label = Config.Locale['detach_rope'],
-        bones = {'boot', 'bumper_r', 'exhaust', 'wheel_lr', 'wheel_rr', 'seat_r'},
+        bones = {'wheel_lr', 'wheel_rr'},
         distance = 3.5,
         canInteract = function(entity)
             return towingData.vehicle == entity and towingData.rope ~= nil
