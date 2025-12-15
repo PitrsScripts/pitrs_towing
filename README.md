@@ -50,10 +50,10 @@
 | ------------------------- | ------------ |
 | **Code is accessible**    | Yes          |
 | **Subscription-based**    | No           |
-| **Lines (approximately)** | ~         |
+| **Lines (approximately)** | ~ 362        |
 | **Framework**             | ESX          |
 | **Inventory**             | OX Inventory |
 | **Target system**         | OX Target    |
 | **UI / Utils**            | OX Lib       |
-| **Support**               | YES           |
+| **Support**               | YES          |
 
